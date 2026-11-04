@@ -102,13 +102,13 @@ fun PickerScreen(vm: AppViewModel) {
                         }
                     }
                 } else {
-                    if (picker.stops.isNotEmpty()) item { SectionTitle(stringResource(R.string.stops)) }
-                    items(picker.stops) { place -> ResultRow(place, Icons.Default.DirectionsBus, vm) }
-                    if (picker.stopsFailed) item { Notice(stringResource(R.string.stops_unavailable), error = true) }
-
                     if (picker.places.isNotEmpty()) item { SectionTitle(stringResource(R.string.places)) }
                     items(picker.places) { place -> ResultRow(place, Icons.Default.Place, vm) }
                     if (picker.placesFailed) item { Notice(stringResource(R.string.places_unavailable), error = false) }
+
+                    if (picker.stops.isNotEmpty()) item { SectionTitle(stringResource(R.string.stops)) }
+                    items(picker.stops) { place -> ResultRow(place, Icons.Default.DirectionsBus, vm) }
+                    if (picker.stopsFailed) item { Notice(stringResource(R.string.stops_unavailable), error = true) }
 
                     if (picker.searchingStops || picker.searchingPlaces) {
                         item { Notice(stringResource(R.string.searching), error = false) }
