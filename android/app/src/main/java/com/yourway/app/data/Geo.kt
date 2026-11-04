@@ -10,8 +10,13 @@ object Geo {
     /** Streets aren't straight lines, so straight-line distance is scaled up to estimate the walk. */
     const val WALK_FACTOR = 1.3
 
-    fun walkMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int =
-        (straightMeters(lat1, lon1, lat2, lon2) * WALK_FACTOR).toInt()
+    /** Anything under this is treated as already being there (GPS and stop positions are never that exact). */
+    const val AT_STOP_METERS = 20
+
+    fun walkMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
+        val meters = (straightMeters(lat1, lon1, lat2, lon2) * WALK_FACTOR).toInt()
+        return if (meters < AT_STOP_METERS) 0 else meters
+    }
 
     fun straightMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val dy = (lat2 - lat1) * METERS_PER_DEGREE

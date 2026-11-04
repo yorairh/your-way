@@ -33,6 +33,13 @@ class NearestBoardingTest {
     }
 
     @Test
+    fun beingWithinTwentyMetresOfAStopMeansNoWalkIsShown() {
+        // The near stop is about 14 m from the start, so the trip should open with the bus, not a walk.
+        val trip = plan(TestPattern("7", listOf(0, 1, 2), listOf(0, 120, 1200), listOf(eight + 1500))).first()
+        assertTrue(trip.legs.first() is com.yourway.app.data.TransitLeg)
+    }
+
+    @Test
     fun boardsTheSameBusAtTheStopYouAreStandingAt() {
         val trip = plan(TestPattern("7", listOf(0, 1, 2), listOf(0, 120, 1200), listOf(eight + 1500))).first()
         val ride = trip.rides.single()

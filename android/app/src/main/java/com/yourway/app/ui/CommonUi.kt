@@ -4,8 +4,13 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -79,7 +84,27 @@ fun AppScaffold(
                 actions = { actions() },
             )
         },
-    ) { padding -> content(Modifier.padding(padding)) }
+    ) { padding ->
+        val tint = MaterialTheme.colorScheme.primary
+        Box(Modifier.padding(padding).fillMaxSize().drawBehind { drawRails(tint) }) { content(Modifier) }
+    }
+}
+
+/** A faint railway track (two rails and sleepers) running down the screen, in the theme colour. */
+private fun DrawScope.drawRails(tint: Color) {
+    val gauge = 130.dp.toPx()
+    val left = size.width / 2 - gauge / 2
+    val right = size.width / 2 + gauge / 2
+    val sleeper = tint.copy(alpha = 0.10f)
+    val rail = tint.copy(alpha = 0.16f)
+    val step = 26.dp.toPx()
+    var y = 0f
+    while (y < size.height) {
+        drawLine(sleeper, Offset(left - 18.dp.toPx(), y), Offset(right + 18.dp.toPx(), y), strokeWidth = 7.dp.toPx())
+        y += step
+    }
+    drawLine(rail, Offset(left, 0f), Offset(left, size.height), strokeWidth = 4.dp.toPx())
+    drawLine(rail, Offset(right, 0f), Offset(right, size.height), strokeWidth = 4.dp.toPx())
 }
 
 @Composable

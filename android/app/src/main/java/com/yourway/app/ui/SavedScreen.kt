@@ -24,6 +24,14 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Work
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -130,7 +138,7 @@ fun SettingsScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val chosen = LanguageSetting.get(context)
     AppScaffold(stringResource(R.string.settings), onBack = vm::back) { modifier ->
-        Column(modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier.padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.language), style = MaterialTheme.typography.titleSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LanguageChoice(chosen, LanguageSetting.SYSTEM, stringResource(R.string.language_system), context)
@@ -140,12 +148,7 @@ fun SettingsScreen(vm: AppViewModel) {
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.theme_colour), style = MaterialTheme.typography.titleSmall)
             val theme by vm.theme.collectAsState()
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ThemeChoice(theme, AppTheme.BLUE, R.string.theme_blue, vm)
-                ThemeChoice(theme, AppTheme.GREEN, R.string.theme_green, vm)
-                ThemeChoice(theme, AppTheme.ORANGE, R.string.theme_orange, vm)
-                ThemeChoice(theme, AppTheme.PURPLE, R.string.theme_purple, vm)
-            }
+            ThemeDropdown(theme, vm)
             Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.max_walk), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.meters, value.toInt()), style = MaterialTheme.typography.titleMedium)
@@ -160,14 +163,39 @@ fun SettingsScreen(vm: AppViewModel) {
     }
 }
 
+private fun themeLabel(theme: AppTheme) = when (theme) {
+    AppTheme.BLUE -> R.string.theme_blue
+    AppTheme.GREEN -> R.string.theme_green
+    AppTheme.ORANGE -> R.string.theme_orange
+    AppTheme.PURPLE -> R.string.theme_purple
+}
+
 @Composable
-private fun ThemeChoice(chosen: AppTheme, theme: AppTheme, label: Int, vm: AppViewModel) {
-    FilterChip(
-        selected = chosen == theme,
-        onClick = { vm.setTheme(theme) },
-        label = { Text(stringResource(label)) },
-        leadingIcon = { Box(Modifier.size(16.dp).background(themeSeed(theme), CircleShape)) },
-    )
+private fun ThemeDot(theme: AppTheme) {
+    Box(Modifier.size(18.dp).background(themeSeed(theme), CircleShape))
+}
+
+@Composable
+private fun ThemeDropdown(chosen: AppTheme, vm: AppViewModel) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { open = true }) {
+            ThemeDot(chosen)
+            Spacer(Modifier.width(10.dp))
+            Text(stringResource(themeLabel(chosen)))
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            AppTheme.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(themeLabel(option))) },
+                    leadingIcon = { ThemeDot(option) },
+                    onClick = { vm.setTheme(option); open = false },
+                )
+            }
+        }
+    }
 }
 
 @Composable

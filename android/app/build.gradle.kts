@@ -13,8 +13,8 @@ android {
         applicationId = "com.yourway.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.4.0"
+        versionCode = 3
+        versionName = "0.5.0"
         // Phones only. The map library's native code is large, and PC emulator chips (x86) would double the size.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }
