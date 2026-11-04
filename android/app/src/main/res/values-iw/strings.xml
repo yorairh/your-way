@@ -64,4 +64,7 @@
     <string name="theme_green">ירוק</string>
     <string name="theme_orange">כתום</string>
     <string name="theme_purple">סגול</string>
+    <string name="live_on_time">בזמן אמת · בזמן</string>
+    <string name="live_late">בזמן אמת · איחור של %1$d דקות</string>
+    <string name="missed_transfer">בגלל איחור ייתכן שתפספסו חיבור</string>
 </resources>

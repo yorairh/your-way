@@ -216,6 +216,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     ),
                 )
             }
+            // Show the timetable routes at once, then refine them with live bus positions when they arrive.
+            val found = result.getOrNull()
+            if (!found.isNullOrEmpty()) {
+                val live = attempt { container.trips.withLiveData(found, LocalDateTime.now()) }.getOrNull()
+                if (live != null && live !== found) _state.update { it.copy(results = ResultsState.Found(live)) }
+            }
         }
     }
 

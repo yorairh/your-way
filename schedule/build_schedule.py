@@ -136,10 +136,14 @@ def tables(stop_ids, agencies, routes, services, patterns, shapes):
         "route_short", "route_type", "route_agency", "svc_days", "svc_start", "svc_end", "pat_route", "pat_headsign",
         "pat_shape", "pat_stops", "pat_arr", "pat_dep", "pat_flags", "trip_start", "trip_service", "shape_lat", "shape_lon")}
     t["pat_stop_start"], t["pat_trip_start"], t["shape_start"] = [0], [0], [0]
+    # GTFS route and agency numbers, used to match live bus data (written last so older readers still work).
+    t["route_id"], t["route_operator"] = [], []
     for r in route_ids:
         t["route_short"].append(strings.add(routes[r]["route_short_name"]))
         t["route_type"].append(int(routes[r]["route_type"]))
         t["route_agency"].append(strings.add(agencies.get(routes[r]["agency_id"], "")))
+        t["route_id"].append(int(r))
+        t["route_operator"].append(int(routes[r]["agency_id"] or 0))
     for s in service_ids:
         for name, value in zip(("svc_days", "svc_start", "svc_end"), services[s]):
             t[name].append(value)

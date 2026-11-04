@@ -2,6 +2,7 @@ package com.yourway.app.routing
 
 import com.yourway.app.data.Geo
 import com.yourway.app.data.Itinerary
+import com.yourway.app.data.RideRef
 import com.yourway.app.data.LatLon
 import com.yourway.app.data.Leg
 import com.yourway.app.data.StopDirectory
@@ -141,6 +142,7 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
                         stops.name(schedule.patStops[base + leg.alightPos], query.hebrew),
                         leg.alightPos - leg.boardPos,
                         schedule.path(leg.pattern, leg.boardPos, leg.alightPos, stops::lat, stops::lon),
+                        ride = RideRef(leg.pattern, leg.absoluteStart, leg.boardPos, leg.alightPos, date),
                     )
                     clock = end
                 }

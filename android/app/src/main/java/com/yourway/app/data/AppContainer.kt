@@ -66,7 +66,7 @@ class AppContainer(
                 locator = AndroidLocator(context),
                 savedPlaces = AppDatabase.create(context).savedPlaces(),
                 walkSetting = WalkSetting(context),
-                trips = TripRepository(schedule, stops),
+                trips = TripRepository(schedule, stops, StrideLiveSource()),
             )
         }
     }

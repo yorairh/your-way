@@ -68,4 +68,7 @@
     <string name="theme_green">Green</string>
     <string name="theme_orange">Orange</string>
     <string name="theme_purple">Purple</string>
+    <string name="live_on_time">Live · on time</string>
+    <string name="live_late">Live · %1$d min late</string>
+    <string name="missed_transfer">A delay may make you miss a connection</string>
 </resources>

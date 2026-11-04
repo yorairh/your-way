@@ -41,9 +41,16 @@ class TransitLeg(
     val path: List<LatLon>,
     /** True only once the departure time includes a live delay. */
     val isLive: Boolean = false,
+    /** How late the bus is running, when [isLive]; the times above already include it. */
+    val delayMinutes: Int = 0,
+    /** Which scheduled trip this is, so live data can be matched to it. */
+    val ride: RideRef? = null,
 ) : Leg
 
-class Itinerary(val legs: List<Leg>) {
+/** A scheduled trip of a pattern: it starts at [startSeconds] after midnight of [date]. */
+class RideRef(val pattern: Int, val startSeconds: Int, val boardPos: Int, val alightPos: Int, val date: java.time.LocalDate)
+
+class Itinerary(val legs: List<Leg>, val missedTransfer: Boolean = false) {
     val departure: LocalDateTime get() = legs.first().start
     val arrival: LocalDateTime get() = legs.last().end
     val duration: Duration get() = Duration.between(departure, arrival)

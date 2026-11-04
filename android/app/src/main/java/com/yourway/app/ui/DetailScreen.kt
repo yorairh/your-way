@@ -44,13 +44,26 @@ fun DetailScreen(vm: AppViewModel) {
                             supportingContent = {
                                 Text(
                                     stringResource(R.string.ride_detail, leg.fromStop, leg.toStop, leg.stopCount) + " · " +
-                                        stringResource(if (leg.isLive) R.string.live_times else R.string.from_schedule),
+                                        when {
+                                            !leg.isLive -> stringResource(R.string.from_schedule)
+                                            leg.delayMinutes > 0 -> stringResource(R.string.live_late, leg.delayMinutes)
+                                            else -> stringResource(R.string.live_on_time)
+                                        },
                                 )
                             },
                             leadingContent = { Icon(leg.mode.icon(), null) },
                         )
                     }
                     HorizontalDivider()
+                }
+                if (trip.missedTransfer) {
+                    item {
+                        Text(
+                            stringResource(R.string.missed_transfer),
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
                 }
                 item {
                     Text(

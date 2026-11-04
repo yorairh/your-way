@@ -35,6 +35,9 @@ class Schedule(
     val shapeStart: IntArray,
     shapeLatDeltas: IntArray,
     shapeLonDeltas: IntArray,
+    /** GTFS route and agency numbers per route, used to match live data; empty in files written before 0.8. */
+    val routeId: IntArray = IntArray(0),
+    val routeOperator: IntArray = IntArray(0),
 ) {
     val patternCount: Int get() = patRoute.size
 
@@ -154,10 +157,11 @@ class Schedule(
             val tripStart = ints(); val tripService = ints()
             val shapeLat = ints(); val shapeLon = ints()
             val patStopStart = ints(); val patTripStart = ints(); val shapeStart = ints()
+            val ids = try { ints() to ints() } catch (_: java.io.EOFException) { IntArray(0) to IntArray(0) }
             return Schedule(
                 stops, first, last, strings, routeShort, routeType, routeAgency, svcDays, svcStart, svcEnd,
                 patRoute, patHeadsign, patShape, patStopStart, patStops, patArr, patDep, patFlags, patTripStart,
-                tripStart, tripService, shapeStart, shapeLat, shapeLon,
+                tripStart, tripService, shapeStart, shapeLat, shapeLon, ids.first, ids.second,
             )
         }
     }

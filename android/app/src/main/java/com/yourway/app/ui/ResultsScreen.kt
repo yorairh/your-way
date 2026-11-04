@@ -112,6 +112,9 @@ private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
                 "$transfers · ${stringResource(R.string.walking_meters, trip.walkMeters)} · $source",
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (trip.missedTransfer) {
+                Text(stringResource(R.string.missed_transfer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }

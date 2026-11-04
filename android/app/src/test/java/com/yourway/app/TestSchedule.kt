@@ -48,5 +48,6 @@ fun testSchedule(stopCount: Int, patterns: List<TestPattern>): Schedule {
         patterns.runningFold(0) { a, p -> a + p.starts.size }.toIntArray(), patterns.flatMap { it.starts }.toIntArray(),
         patterns.flatMap { p -> p.starts.map { p.service } }.toIntArray(),
         shapeStart.toIntArray(), deltas { it.first }, deltas { it.second },
+        IntArray(patterns.size) { 100 + it }, IntArray(patterns.size),
     )
 }
