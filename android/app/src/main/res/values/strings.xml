@@ -63,4 +63,9 @@
     <string name="ride_detail">%1$s → %2$s · %3$d stops</string>
     <string name="map_unavailable">The map couldn\'t be shown. The steps are listed below.</string>
     <string name="walking_approx">Walking is shown as a straight line.</string>
+    <string name="theme_colour">Colour</string>
+    <string name="theme_blue">Blue</string>
+    <string name="theme_green">Green</string>
+    <string name="theme_orange">Orange</string>
+    <string name="theme_purple">Purple</string>
 </resources>

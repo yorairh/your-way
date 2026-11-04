@@ -7,12 +7,14 @@ import androidx.lifecycle.viewModelScope
 import com.yourway.app.R
 import com.yourway.app.YourWayApp
 import com.yourway.app.data.LanguageSetting
+import com.yourway.app.data.AppTheme
 import com.yourway.app.data.Itinerary
 import com.yourway.app.data.Place
 import com.yourway.app.data.PlaceKind
 import com.yourway.app.data.SavedKind
 import com.yourway.app.data.SavedPlace
 import com.yourway.app.data.ScheduleExpiredException
+import com.yourway.app.data.ThemeSetting
 import com.yourway.app.data.TimeMode
 import com.yourway.app.data.TripQuery
 import com.yourway.app.data.WalkSetting
@@ -79,6 +81,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val maxWalkMeters: StateFlow<Int> = container.walkSetting.meters
         .catch { emit(WalkSetting.DEFAULT_METERS) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, WalkSetting.DEFAULT_METERS)
+
+    private val _theme = MutableStateFlow(ThemeSetting.get(app))
+    val theme: StateFlow<AppTheme> = _theme
+
+    fun setTheme(theme: AppTheme) {
+        ThemeSetting.set(getApplication(), theme)
+        _theme.value = theme
+    }
 
     private var stopSearch: Job? = null
     private var placeSearch: Job? = null

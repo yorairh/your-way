@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A winding route from a start dot to an end marker. Everything sits inside the 66dp area Android never crops. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M38,72 C38,59 66,66 66,54 C66,43 42,48 42,40 C42,33 56,38 70,36"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M32,72 a6,6 0 1,0 12,0 a6,6 0 1,0 -12,0 z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M62,36 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 z"
+        android:fillColor="#FFB300"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5" />
+    <path
+        android:pathData="M67,36 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z"
+        android:fillColor="#FFFFFF" />
+</vector>

@@ -2,6 +2,7 @@ package com.yourway.app.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,7 +58,16 @@ fun AppScaffold(
 ) {
     Scaffold(
         topBar = {
+            val dark = isSystemInDarkTheme()
+            val colors = MaterialTheme.colorScheme
+            val onBar = if (dark) colors.onPrimaryContainer else colors.onPrimary
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (dark) colors.primaryContainer else colors.primary,
+                    titleContentColor = onBar,
+                    navigationIconContentColor = onBar,
+                    actionIconContentColor = onBar,
+                ),
                 title = { Text(title) },
                 navigationIcon = {
                     if (onBack != null) {

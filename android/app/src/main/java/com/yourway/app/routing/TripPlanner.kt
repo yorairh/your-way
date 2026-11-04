@@ -10,11 +10,11 @@ import com.yourway.app.data.TransitLeg
 import com.yourway.app.data.TransitMode
 import com.yourway.app.data.TripQuery
 import com.yourway.app.data.WalkLeg
-import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
-/** Turns searches into the top routes: earliest arrival, with fewer transfers winning when times are close. */
+/** Turns searches into the top routes: early arrival first, with less walking and fewer transfers winning when times are close. */
 class TripPlanner(private val schedule: Schedule, private val stops: StopDirectory) {
     private val raptor = Raptor(schedule, stops)
 
@@ -25,14 +25,16 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         val found = ArrayList<Itinerary>()
         directWalk(query, query.time)?.let { found += it }
         val excluded = BooleanArray(schedule.patternCount)
-        repeat(MAX_SEARCHES) {
-            val batch = search(query, query.time, excluded)
-            if (batch.isEmpty()) return rankByArrival(found)
+        for (attempt in 0 until MAX_SEARCHES) {
+            // The first search also tries shorter walks, in case a nearby stop is only a little slower.
+            val limits = if (attempt == 0) walkLimits(query.maxWalkMeters) else listOf(query.maxWalkMeters)
+            val batch = limits.flatMap { search(query, query.time, excluded, it) }
+            if (batch.isEmpty()) break
             found += batch.map { it.second }
-            if (distinct(found) >= RESULT_COUNT) return rankByArrival(found)
+            if (distinct(found) >= RESULT_COUNT) break
             batch.forEach { exclude(it.first, excluded) }
         }
-        return rankByArrival(found)
+        return rank(found, byDeparture = false)
     }
 
     private fun planArriveBy(query: TripQuery): List<Itinerary> {
@@ -43,25 +45,30 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         val excluded = BooleanArray(schedule.patternCount)
         var searches = 0
         var step = 1L
+        var triedShorterWalks = false
         while (step <= MAX_ARRIVE_BY_STEPS && searches < MAX_ARRIVE_BY_SEARCHES && distinct(found) < RESULT_COUNT) {
             val departAt = query.time.minusMinutes(step * ARRIVE_BY_STEP_MINUTES)
-            val batch = search(query, departAt, excluded).filter { !it.second.arrival.isAfter(query.time) }
+            val limits = if (triedShorterWalks) listOf(query.maxWalkMeters) else walkLimits(query.maxWalkMeters)
+            val batch = limits.flatMap { search(query, departAt, excluded, it) }.filter { !it.second.arrival.isAfter(query.time) }
             searches++
             if (batch.isEmpty()) {
                 step++
             } else {
+                triedShorterWalks = true
                 found += batch.map { it.second }
                 batch.forEach { exclude(it.first, excluded) }
             }
         }
-        return rankByDeparture(found)
+        return rank(found, byDeparture = true)
     }
 
-    private fun search(query: TripQuery, at: LocalDateTime, excluded: BooleanArray): List<Pair<RawJourney, Itinerary>> {
+    private fun walkLimits(max: Int) = listOf(max, max / 2, max / 4).filter { it == max || it >= MIN_SHORTER_WALK }.distinct()
+
+    private fun search(query: TripQuery, at: LocalDateTime, excluded: BooleanArray, walkLimit: Int): List<Pair<RawJourney, Itinerary>> {
         val date = at.toLocalDate()
         return raptor.search(
             query.from.lat, query.from.lon, query.to.lat, query.to.lon,
-            date, at.toLocalTime().toSecondOfDay(), query.maxWalkMeters, excluded,
+            date, at.toLocalTime().toSecondOfDay(), walkLimit, excluded,
         ).map { it to toItinerary(it, date, query) }
     }
 
@@ -98,29 +105,17 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         }
     }
 
-    private fun rankByArrival(list: List<Itinerary>): List<Itinerary> {
-        val unique = list.sortedBy { it.arrival }.distinctBy { it.signature() }
-        return preferFewerTransfers(unique) { a, b -> Duration.between(a.arrival, b.arrival) }
-    }
-
-    private fun rankByDeparture(list: List<Itinerary>): List<Itinerary> {
-        val unique = list.sortedByDescending { it.departure }.distinctBy { it.signature() }
-        return preferFewerTransfers(unique) { a, b -> Duration.between(b.departure, a.departure) }
-    }
-
-    private fun preferFewerTransfers(sorted: List<Itinerary>, gap: (Itinerary, Itinerary) -> Duration): List<Itinerary> {
-        val out = sorted.toMutableList()
-        for (pass in out.indices) {
-            for (i in 0 until out.size - 1) {
-                val a = out[i]
-                val b = out[i + 1]
-                if (b.transfers < a.transfers && gap(a, b) <= CLOSE_TIMES) {
-                    out[i] = b
-                    out[i + 1] = a
-                }
-            }
+    /**
+     * Best first. A route costs its arrival time (or, for arrive by, how early you must leave), plus half its walking
+     * time again and five minutes per transfer. So a route that is a minute or two slower but walks much less, or
+     * changes less, comes first. Routes that use the same lines are the same choice, and only the best is kept.
+     */
+    private fun rank(list: List<Itinerary>, byDeparture: Boolean): List<Itinerary> {
+        fun cost(trip: Itinerary): Double {
+            val time = if (byDeparture) -trip.departure.toEpochSecond(ZoneOffset.UTC) else trip.arrival.toEpochSecond(ZoneOffset.UTC)
+            return time + WALK_WEIGHT * Geo.walkSeconds(trip.walkMeters) + TRANSFER_PENALTY_SECONDS * trip.transfers
         }
-        return out.take(RESULT_COUNT)
+        return list.sortedBy(::cost).distinctBy { it.signature() }.take(RESULT_COUNT)
     }
 
     private fun toItinerary(raw: RawJourney, date: LocalDate, query: TripQuery): Itinerary {
@@ -186,8 +181,7 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         else -> TransitMode.BUS
     }
 
-    private fun Itinerary.signature() =
-        rides.joinToString("|") { "${it.mode}:${it.line}:${it.fromStop}:${it.toStop}" }
+    private fun Itinerary.signature() = rides.joinToString("|") { "${it.mode}:${it.line}:${it.headsign}" }
 
     private companion object {
         const val RESULT_COUNT = 3
@@ -197,6 +191,8 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         const val ARRIVE_BY_STEP_MINUTES = 15L
         const val ROUTE_TYPE_TRAIN = 2
         const val ROUTE_TYPE_LIGHT_RAIL = 0
-        val CLOSE_TIMES: Duration = Duration.ofMinutes(5)
+        const val MIN_SHORTER_WALK = 150
+        const val WALK_WEIGHT = 0.5
+        const val TRANSFER_PENALTY_SECONDS = 300
     }
 }

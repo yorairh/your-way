@@ -5,7 +5,11 @@ import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -39,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.yourway.app.R
+import com.yourway.app.data.AppTheme
 import com.yourway.app.data.LanguageSetting
 import com.yourway.app.data.SavedKind
 import com.yourway.app.data.SavedPlace
@@ -133,6 +138,15 @@ fun SettingsScreen(vm: AppViewModel) {
                 LanguageChoice(chosen, LanguageSetting.HEBREW, stringResource(R.string.language_hebrew), context)
             }
             Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.theme_colour), style = MaterialTheme.typography.titleSmall)
+            val theme by vm.theme.collectAsState()
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeChoice(theme, AppTheme.BLUE, R.string.theme_blue, vm)
+                ThemeChoice(theme, AppTheme.GREEN, R.string.theme_green, vm)
+                ThemeChoice(theme, AppTheme.ORANGE, R.string.theme_orange, vm)
+                ThemeChoice(theme, AppTheme.PURPLE, R.string.theme_purple, vm)
+            }
+            Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.max_walk), style = MaterialTheme.typography.titleSmall)
             Text(stringResource(R.string.meters, value.toInt()), style = MaterialTheme.typography.titleMedium)
             Slider(
@@ -144,6 +158,16 @@ fun SettingsScreen(vm: AppViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun ThemeChoice(chosen: AppTheme, theme: AppTheme, label: Int, vm: AppViewModel) {
+    FilterChip(
+        selected = chosen == theme,
+        onClick = { vm.setTheme(theme) },
+        label = { Text(stringResource(label)) },
+        leadingIcon = { Box(Modifier.size(16.dp).background(themeSeed(theme), CircleShape)) },
+    )
 }
 
 @Composable

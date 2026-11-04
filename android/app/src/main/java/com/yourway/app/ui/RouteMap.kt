@@ -49,7 +49,7 @@ private const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 /** Colours are plain strings because the map styles read them from each line's properties. */
 private fun TransitMode.color() = when (this) {
     TransitMode.BUS -> "#1565C0"
-    TransitMode.TRAIN -> "#2E7D32"
+    TransitMode.TRAIN -> "#6A1B9A"
     TransitMode.LIGHT_RAIL -> "#C62828"
 }
 

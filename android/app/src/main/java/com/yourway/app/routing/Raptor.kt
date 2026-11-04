@@ -142,7 +142,8 @@ class Raptor(private val schedule: Schedule, private val stops: StopDirectory) {
                     r--
                 }
                 legs += RawWalk(ORIGIN, s, accessMeters[s])
-                results += RawJourney(legs.asReversed().toList(), bestAtDestination)
+                val forward = legs.asReversed().toList()
+                results += RawJourney(nearerBoarding(forward, fromLat, fromLon, departure, maxWalkMeters), bestAtDestination)
             }
 
             if (nextMarked.none { it }) break
@@ -150,6 +151,70 @@ class Raptor(private val schedule: Schedule, private val stops: StopDirectory) {
         }
         return results
     }
+
+    /**
+     * The search boards a trip at the first stop where it can be caught, which can be a long walk away from a stop
+     * the same trip also serves, and arrives at exactly the same time. This moves each boarding to the stop of the
+     * same trip with the least walking, as long as the passenger still gets there before the trip leaves it.
+     */
+    private fun nearerBoarding(legs: List<RawLeg>, fromLat: Double, fromLon: Double, departure: Int, maxWalk: Int): List<RawLeg> {
+        val out = ArrayList<RawLeg>()
+        var lat = fromLat
+        var lon = fromLon
+        var clock = departure
+        var transfer = false
+        var i = 0
+        while (i < legs.size) {
+            val leg = legs[i]
+            val next = legs.getOrNull(i + 1)
+            if (leg is RawWalk && next is RawRide) {
+                val ride = withNearestBoarding(leg, next, lat, lon, clock, if (transfer) TRANSFER_SLACK_SECONDS else 0, maxWalk)
+                out += ride.first
+                out += ride.second
+                clock = rideEnd(ride.second)
+                lat = alightLat(ride.second)
+                lon = alightLon(ride.second)
+                transfer = true
+                i += 2
+            } else {
+                if (leg is RawRide) {
+                    clock = rideEnd(leg)
+                    lat = alightLat(leg)
+                    lon = alightLon(leg)
+                    transfer = true
+                }
+                out += leg
+                i++
+            }
+        }
+        return out
+    }
+
+    private fun withNearestBoarding(
+        walk: RawWalk, ride: RawRide, lat: Double, lon: Double, clock: Int, slack: Int, maxWalk: Int,
+    ): Pair<RawWalk, RawRide> {
+        val base = schedule.patStopStart[ride.pattern]
+        var bestPos = ride.boardPos
+        var bestMeters = walk.meters
+        for (pos in 0 until ride.alightPos) {
+            if (schedule.patFlags[base + pos] and FLAG_NO_PICKUP != 0) continue
+            val stop = schedule.patStops[base + pos]
+            val meters = Geo.walkMeters(lat, lon, stops.lat(stop), stops.lon(stop))
+            if (meters > maxWalk) continue
+            if (clock + Geo.walkSeconds(meters) + slack > ride.absoluteStart + schedule.patDep[base + pos]) continue
+            if (meters < bestMeters || (meters == bestMeters && pos > bestPos)) {
+                bestPos = pos
+                bestMeters = meters
+            }
+        }
+        if (bestPos == ride.boardPos) return walk to ride
+        return RawWalk(walk.fromStop, schedule.patStops[base + bestPos], bestMeters) to
+            RawRide(ride.pattern, ride.absoluteStart, bestPos, ride.alightPos)
+    }
+
+    private fun rideEnd(ride: RawRide) = ride.absoluteStart + schedule.patArr[schedule.patStopStart[ride.pattern] + ride.alightPos]
+    private fun alightLat(ride: RawRide) = stops.lat(schedule.patStops[schedule.patStopStart[ride.pattern] + ride.alightPos])
+    private fun alightLon(ride: RawRide) = stops.lon(schedule.patStops[schedule.patStopStart[ride.pattern] + ride.alightPos])
 
     /** Earliest absolute trip start whose departure from a stop [offset] seconds into the trip is at or after [ready]. */
     private fun earliestTrip(pattern: Int, offset: Int, ready: Int, active: Array<BooleanArray>): Int {
