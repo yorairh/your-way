@@ -71,7 +71,7 @@ fun ResultsScreen(vm: AppViewModel) {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(results.trips) { trip -> TripCard(trip) { vm.select(trip) } }
+                    items(results.trips) { trip -> TripCard(trip, onClick = { vm.select(trip) }, onPick = vm::select) }
                 }
             }
         }
@@ -84,7 +84,7 @@ private fun BoxScope.Message(text: Int) {
 }
 
 @Composable
-private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
+private fun TripCard(trip: Itinerary, onClick: () -> Unit, onPick: (Itinerary) -> Unit) {
     val transfers = when (trip.transfers) {
         0 -> stringResource(R.string.direct)
         1 -> stringResource(R.string.one_transfer)
@@ -95,15 +95,24 @@ private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
     val source = liveStatusText(live.isNotEmpty(), worst)
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            val options = trip.alternatives
+            if (options.size > 1) {
+                val rides = trip.rides
                 Text(
-                    "${trip.departure.format(clockFormat)} – ${trip.arrival.format(clockFormat)}",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
+                    "${rides.first().fromStop} → ${rides.last().toStop}",
+                    style = MaterialTheme.typography.titleMedium,
                 )
-                Text(stringResource(R.string.minutes, trip.duration.toMinutes().toInt()), style = MaterialTheme.typography.titleMedium)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "${trip.departure.format(clockFormat)} – ${trip.arrival.format(clockFormat)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(stringResource(R.string.minutes, trip.duration.toMinutes().toInt()), style = MaterialTheme.typography.titleMedium)
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (options.size <= 1) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 trip.legs.forEach { leg ->
                     when (leg) {
                         is WalkLeg -> Icon(Icons.Default.DirectionsWalk, null)
@@ -118,9 +127,37 @@ private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
                 },
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (options.size > 1) {
+                options.forEach { option -> OptionRow(option, onClick = { onPick(option) }) }
+            }
             if (trip.missedTransfer) {
                 Text(stringResource(R.string.missed_transfer), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
+        }
+    }
+}
+
+/** One bus (or combination of lines) within a route: its lines, destination, and when it leaves. */
+@Composable
+private fun OptionRow(option: Itinerary, onClick: () -> Unit) {
+    val rides = option.rides
+    val first = rides.firstOrNull() ?: return
+    val live = rides.filter { it.isLive }
+    val color = liveColor(live.isNotEmpty(), live.maxOfOrNull { it.delayMinutes } ?: 0)
+    val minutes = java.time.Duration.between(java.time.LocalDateTime.now(), first.start).toMinutes().toInt().coerceAtLeast(0)
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(first.mode.icon(), null, tint = color)
+        Column(Modifier.weight(1f)) {
+            Text(rides.joinToString(" › ") { it.line }, style = MaterialTheme.typography.titleMedium)
+            Text(first.headsign, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(stringResource(R.string.in_minutes, minutes), color = color, style = MaterialTheme.typography.titleMedium)
+            Text(first.start.format(clockFormat), color = color, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

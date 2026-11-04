@@ -45,7 +45,7 @@ class LiveUpdater(
     suspend fun apply(trips: List<Itinerary>): List<Itinerary> {
         val result = withTimeoutOrNull(TIMEOUT_MS) {
             coroutineScope {
-                val rides = trips.flatMap { it.rides }
+                val rides = trips.flatMap { it.alternatives + it }.flatMap { it.rides }
                     .filter { it.mode == TransitMode.BUS }
                     .mapNotNull { it.ride }
                     .distinctBy { Triple(it.pattern, it.startSeconds, it.date) }
@@ -109,6 +109,12 @@ class LiveUpdater(
     }
 
     private fun adjust(trip: Itinerary, delays: Map<Triple<Int, Int, java.time.LocalDate>, Int?>): Itinerary {
+        val options = if (trip.alternatives.isEmpty()) emptyList() else trip.alternatives.map { adjustOne(it, delays) }.sortedBy { it.departure }
+        val self = adjustOne(trip, delays)
+        return Itinerary(self.legs, self.missedTransfer, options)
+    }
+
+    private fun adjustOne(trip: Itinerary, delays: Map<Triple<Int, Int, java.time.LocalDate>, Int?>): Itinerary {
         fun delayOf(leg: TransitLeg): Int? = leg.ride?.let { delays[Triple(it.pattern, it.startSeconds, it.date)] }
         if (trip.rides.none { delayOf(it) != null }) return trip
         val legs = ArrayList<Leg>()

@@ -50,7 +50,11 @@ class TransitLeg(
 /** A scheduled trip of a pattern: it starts at [startSeconds] after midnight of [date]. */
 class RideRef(val pattern: Int, val startSeconds: Int, val boardPos: Int, val alightPos: Int, val date: java.time.LocalDate)
 
-class Itinerary(val legs: List<Leg>, val missedTransfer: Boolean = false) {
+/**
+ * One way of getting there. [alternatives] are the other lines that make the same journey between the same stops
+ * (the first one is this itinerary itself), ordered by departure, so a single route can offer several buses.
+ */
+class Itinerary(val legs: List<Leg>, val missedTransfer: Boolean = false, val alternatives: List<Itinerary> = emptyList()) {
     val departure: LocalDateTime get() = legs.first().start
     val arrival: LocalDateTime get() = legs.last().end
     val duration: Duration get() = Duration.between(departure, arrival)

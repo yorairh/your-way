@@ -67,4 +67,5 @@
     <string name="live_on_time">בזמן אמת · בזמן</string>
     <string name="live_late">בזמן אמת · איחור של %1$d דקות</string>
     <string name="missed_transfer">בגלל איחור ייתכן שתפספסו חיבור</string>
+    <string name="in_minutes">בעוד %1$d דק׳</string>
 </resources>

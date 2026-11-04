@@ -123,7 +123,10 @@ class TripPlannerTest {
             TestPattern("fast", listOf(0, 2), listOf(0, 600), (0..5).map { eight + 300 + it * 3600 }),
             TestPattern("slow", listOf(0, 2), listOf(0, 1800), listOf(eight + 600)),
         )
-        assertEquals(listOf(listOf("fast"), listOf("slow")), plan(s).map { lines(it) })
+        // Both lines serve the same two stops, so they are one route that offers two buses, earliest first.
+        val trips = plan(s)
+        assertEquals(1, trips.size)
+        assertEquals(listOf(listOf("fast"), listOf("slow")), trips.single().alternatives.map { lines(it) })
     }
 
     @Test

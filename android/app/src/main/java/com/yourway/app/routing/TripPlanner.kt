@@ -32,10 +32,10 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
             val batch = limits.flatMap { search(query, query.time, excluded, it) }
             if (batch.isEmpty()) break
             found += batch.map { it.second }
-            if (distinct(found) >= RESULT_COUNT) break
+            if (groups(found) >= RESULT_COUNT && distinct(found) >= MIN_OPTIONS) break
             batch.forEach { exclude(it.first, excluded) }
         }
-        return rank(found, byDeparture = false)
+        return rank(found, byDeparture = false).map { withOtherLines(it, query) }
     }
 
     private fun planArriveBy(query: TripQuery): List<Itinerary> {
@@ -80,7 +80,50 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         return Itinerary(listOf(WalkLeg(at, end, meters, LatLon(query.from.lat, query.from.lon), LatLon(query.to.lat, query.to.lon), query.to.name)))
     }
 
+    /**
+     * For a route that is a single ride, finds the other lines that go between the same two stops, by searching again
+     * with every other line set aside, one line at a time, so the route can offer several buses.
+     */
+    private fun withOtherLines(trip: Itinerary, query: TripQuery): Itinerary {
+        val ref = trip.rides.singleOrNull()?.ride ?: return trip
+        if (query.mode == TimeMode.ARRIVE_BY) return trip
+        val base = schedule.patStopStart[ref.pattern]
+        val board = schedule.patStops[base + ref.boardPos]
+        val alight = schedule.patStops[base + ref.alightPos]
+        val excluded = BooleanArray(schedule.patternCount) { true }
+        for (k in schedule.stopPatStart[board] until schedule.stopPatStart[board + 1]) {
+            val pattern = schedule.stopPats[k]
+            val from = schedule.stopPatPos[k]
+            val start = schedule.patStopStart[pattern]
+            val end = schedule.patStopStart[pattern + 1]
+            if ((from + 1 until end - start).any { schedule.patStops[start + it] == alight }) excluded[pattern] = false
+        }
+        val key = trip.journeyKey()
+        val others = ArrayList<Itinerary>()
+        for (attempt in 0 until MAX_OPTIONS + 1) {
+            val batch = search(query, query.time, excluded, query.maxWalkMeters)
+            if (batch.isEmpty()) break
+            others += batch.map { it.second }.filter { it.journeyKey() == key }
+            batch.forEach { exclude(it.first, excluded) }
+        }
+        // A bus an hour later is not an option worth listing beside the next ones.
+        val all = (trip.alternatives + others).distinctBy { it.signature() }.sortedBy { it.departure }
+        val options = all.filter { it === trip || !it.departure.isAfter(all.first().departure.plusMinutes(OPTION_WINDOW_MINUTES)) }.take(MAX_OPTIONS)
+        return Itinerary(trip.legs, trip.missedTransfer, options)
+    }
+
     private fun distinct(list: List<Itinerary>) = list.distinctBy { it.signature() }.size
+    private fun groups(list: List<Itinerary>) = list.distinctBy { it.journeyKey() }.size
+
+    /** Journeys that board and leave at the same stops are the same route, whatever line they use. */
+    private fun Itinerary.journeyKey(): String {
+        if (rides.isEmpty()) return "walk"
+        return rides.joinToString("|") {
+            val ref = it.ride ?: return@joinToString it.line
+            val base = schedule.patStopStart[ref.pattern]
+            "${schedule.patStops[base + ref.boardPos]}-${schedule.patStops[base + ref.alightPos]}"
+        }
+    }
 
     /**
      * A later run of the same line would otherwise beat every real alternative, so a found journey's longest ride
@@ -116,7 +159,13 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
             val time = if (byDeparture) -trip.departure.toEpochSecond(ZoneOffset.UTC) else trip.arrival.toEpochSecond(ZoneOffset.UTC)
             return time + WALK_WEIGHT * Geo.walkSeconds(trip.walkMeters) + TRANSFER_PENALTY_SECONDS * trip.transfers
         }
-        return list.sortedBy(::cost).distinctBy { it.signature() }.take(RESULT_COUNT)
+        val best = list.sortedBy(::cost).distinctBy { it.signature() }
+        // Several lines over the same stops become one route offering a few buses.
+        return best.groupBy { it.journeyKey() }.values.take(RESULT_COUNT).map { members ->
+            val options = members.sortedBy { it.departure }.take(MAX_OPTIONS)
+            val primary = members.first()
+            Itinerary(primary.legs, primary.missedTransfer, if (options.contains(primary)) options else (options.dropLast(1) + primary).sortedBy { it.departure })
+        }
     }
 
     private fun toItinerary(raw: RawJourney, date: LocalDate, query: TripQuery): Itinerary {
@@ -187,6 +236,9 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
 
     private companion object {
         const val RESULT_COUNT = 3
+        const val MIN_OPTIONS = 6
+        const val MAX_OPTIONS = 5
+        const val OPTION_WINDOW_MINUTES = 40L
         const val MAX_SEARCHES = 8
         const val MAX_ARRIVE_BY_STEPS = 16
         const val MAX_ARRIVE_BY_SEARCHES = 20
