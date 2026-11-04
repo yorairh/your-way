@@ -38,6 +38,10 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.yourway.app.R
 
@@ -119,7 +123,7 @@ private fun DrawScope.drawRails(tint: Color) {
         else -> Offset(w + 40f, rnd.nextFloat() * h)
     }
     fun inside() = Offset(w * (0.15f + rnd.nextFloat() * 0.7f), h * (0.15f + rnd.nextFloat() * 0.7f))
-    val tracks = List(3) { Track(edge(), inside(), inside(), edge()) }
+    val tracks = List(6) { Track(edge(), inside(), inside(), edge()) }
     val gauge = 9.dp.toPx()
     val samples = 160
     tracks.forEach { track ->
@@ -147,9 +151,11 @@ private fun DrawScope.drawRails(tint: Color) {
         }
     }
     // A little train (engine and two carriages) on the first track.
-    val track = tracks[0]
-    for (car in 0..2) {
-        val t = 0.50f - car * 0.055f
+    for (trainIndex in 0..3) {
+      val track = tracks[trainIndex]
+      val front = 0.30f + rnd.nextFloat() * 0.5f
+      for (car in 0..2) {
+        val t = front - car * 0.055f
         val c = track.at(t)
         val d = track.tangent(t)
         val angle = Math.toDegrees(kotlin.math.atan2(d.y.toDouble(), d.x.toDouble())).toFloat()
@@ -163,6 +169,7 @@ private fun DrawScope.drawRails(tint: Color) {
                 drawRoundRect(window, Offset(topLeft.x + 6.dp.toPx() + k * 13.dp.toPx(), c.y - 4.dp.toPx()), androidx.compose.ui.geometry.Size(8.dp.toPx(), 8.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(2.dp.toPx()))
             }
         }
+    }
     }
 }
 
@@ -189,5 +196,30 @@ fun CrashScreen(report: String, onContinue: () -> Unit) {
             TextButton(onClick = onContinue, Modifier.fillMaxWidth()) { Text(stringResource(R.string.continue_to_app)) }
             Text(report, style = MaterialTheme.typography.bodySmall)
         }
+    }
+}
+
+/** How trustworthy a time is: green on time, orange a little late, red very late, grey when it is only the timetable. */
+@Composable
+fun liveColor(isLive: Boolean, delayMinutes: Int): Color {
+    val dark = isSystemInDarkTheme()
+    return when {
+        !isLive -> if (dark) Color(0xFFB0B0B8) else Color(0xFF6B6B73)
+        delayMinutes <= 1 -> if (dark) Color(0xFF6FD176) else Color(0xFF1B7F2A)
+        delayMinutes < 10 -> if (dark) Color(0xFFFFB454) else Color(0xFFB85C00)
+        else -> if (dark) Color(0xFFFF7B72) else Color(0xFFC62828)
+    }
+}
+
+/** A ride's status as coloured text: a dot and the words. */
+@Composable
+fun liveStatusText(isLive: Boolean, delayMinutes: Int): AnnotatedString {
+    val text = when {
+        !isLive -> stringResource(R.string.from_schedule)
+        delayMinutes > 0 -> stringResource(R.string.live_late, delayMinutes)
+        else -> stringResource(R.string.live_on_time)
+    }
+    return buildAnnotatedString {
+        withStyle(SpanStyle(color = liveColor(isLive, delayMinutes), fontWeight = FontWeight.SemiBold)) { append("● $text") }
     }
 }

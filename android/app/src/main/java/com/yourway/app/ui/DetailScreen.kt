@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import com.yourway.app.R
 import com.yourway.app.data.TransitLeg
@@ -43,12 +44,10 @@ fun DetailScreen(vm: AppViewModel) {
                             headlineContent = { Text(stringResource(R.string.ride_line, leg.line, leg.headsign)) },
                             supportingContent = {
                                 Text(
-                                    stringResource(R.string.ride_detail, leg.fromStop, leg.toStop, leg.stopCount) + " · " +
-                                        when {
-                                            !leg.isLive -> stringResource(R.string.from_schedule)
-                                            leg.delayMinutes > 0 -> stringResource(R.string.live_late, leg.delayMinutes)
-                                            else -> stringResource(R.string.live_on_time)
-                                        },
+                                    buildAnnotatedString {
+                                        append(stringResource(R.string.ride_detail, leg.fromStop, leg.toStop, leg.stopCount) + " · ")
+                                        append(liveStatusText(leg.isLive, leg.delayMinutes))
+                                    },
                                 )
                             },
                             leadingContent = { Icon(leg.mode.icon(), null) },

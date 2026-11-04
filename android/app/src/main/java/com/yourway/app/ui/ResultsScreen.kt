@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import com.yourway.app.R
 import com.yourway.app.data.Itinerary
@@ -89,7 +90,9 @@ private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
         1 -> stringResource(R.string.one_transfer)
         else -> stringResource(R.string.transfers, trip.transfers)
     }
-    val source = stringResource(if (trip.hasLiveData) R.string.live_times else R.string.from_schedule)
+    val live = trip.rides.filter { it.isLive }
+    val worst = live.maxOfOrNull { it.delayMinutes } ?: 0
+    val source = liveStatusText(live.isNotEmpty(), worst)
     Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -109,7 +112,10 @@ private fun TripCard(trip: Itinerary, onClick: () -> Unit) {
                 }
             }
             Text(
-                "$transfers · ${stringResource(R.string.walking_meters, trip.walkMeters)} · $source",
+                buildAnnotatedString {
+                    append("$transfers · ${stringResource(R.string.walking_meters, trip.walkMeters)} · ")
+                    append(source)
+                },
                 style = MaterialTheme.typography.bodySmall,
             )
             if (trip.missedTransfer) {
