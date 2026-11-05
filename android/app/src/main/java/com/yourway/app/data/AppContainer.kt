@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.yourway.app.BuildConfig
 import com.yourway.app.routing.Schedule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,7 @@ class AppContainer(
     val savedPlaces: SavedPlaceDao,
     val walkSetting: WalkSetting,
     val trips: TripRepository,
+    val scheduleUpdater: ScheduleUpdater? = null,
 ) {
     private val lock = Mutex()
     private var stops: StopDirectory? = null
@@ -54,13 +56,21 @@ class AppContainer(
 
         fun create(context: Context): AppContainer {
             // The files are gzipped but must not be named .gz: the build unpacks those and drops the extension.
-            val stops = cached {
-                withContext(Dispatchers.IO) { context.assets.open("stops.dat").use { StopDirectory.read(it) } }
+            // The two files belong together, so they come from the same place: the last good download, else the app itself.
+            val updater = ScheduleUpdater.create(context, BuildConfig.VERSION_CODE)
+            val data = cached {
+                withContext(Dispatchers.IO) {
+                    updater.loadDownloaded() ?: ScheduleData(
+                        context.assets.open("schedule.dat").use { Schedule.read(it) },
+                        context.assets.open("stops.dat").use { StopDirectory.read(it) },
+                        null,
+                    )
+                }
             }
-            val schedule = cached {
-                withContext(Dispatchers.IO) { context.assets.open("schedule.dat").use { Schedule.read(it) } }
-            }
+            val stops: suspend () -> StopDirectory = { data().stops }
+            val schedule: suspend () -> Schedule = { data().schedule }
             return AppContainer(
+                scheduleUpdater = updater,
                 loadStops = stops,
                 placeSearch = PhotonSearch(),
                 locator = AndroidLocator(context),

@@ -19,7 +19,7 @@ Rebuild the bundled schedule (both files from the same GTFS zip from gtfs.mot.go
     python schedule/build_stops.py gtfs.zip android/app/src/main/assets/stops.dat
     python schedule/build_schedule.py gtfs.zip android/app/src/main/assets/schedule.dat
 
-Do not run these with `python -I` (breaks the script's imports). The assets are gzipped `.dat` files, and the bundled schedule only covers dates up to 2 December 2026 (no automatic updates exist yet).
+Do not run these with `python -I` (breaks the script's imports). The assets are gzipped `.dat` files, and the bundled schedule only covers dates up to 2 December 2026 (newer ones arrive through the nightly job below).
 
 ## Architecture
 - **Data flow:** `AppContainer` wires everything. `TripRepository` loads `Schedule` (compact arrays read from `schedule.dat`) and `StopDirectory` (from `stops.dat`), asks `TripPlanner` for itineraries, then optionally passes them through `LiveUpdater`. `AppViewModel` is the single state holder for all screens (`Screen` enum; no nav library).
@@ -39,3 +39,6 @@ Do not run these with `python -I` (breaks the script's imports). The assets are 
 
 ## Releasing
 `./release.sh "notes"` runs the tests, builds the signed release APK (`assembleRelease`) and creates the GitHub release `v<versionName>` with `YourWay-<version>.apk`. Signing config comes from `~/.yourway-release/signing.properties` (key stays out of git). Bump `versionCode`/`versionName` first. Releases before 0.10.0 were debug-signed, so phones must uninstall once to move to the release key.
+
+## Automatic schedule updates
+`.github/workflows/schedule.yml` (nightly, 22:30 UTC, or run by hand) builds `schedule.dat`/`stops.dat` with the same scripts, publishes release `schedule-<date>`, then updates `schedule-latest/manifest.json` (written by `schedule/make_manifest.py`). In the app, `data/ScheduleUpdater.kt` fetches the manifest on a background thread from `YourWayApp`, downloads to a staging folder, verifies size+sha256, loads both files to prove they work and match, then swaps; `AppContainer.create` uses the downloaded pair (`filesDir/schedule/<version>`) if valid, else the bundled assets, and a new app version discards the download. The GTFS download must use GET (HEAD returns a web page). Do not run the build scripts with `python -I`. The updater is skipped under Robolectric.

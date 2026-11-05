@@ -3,8 +3,8 @@
 An Android app that plans trips on Israeli public transport: buses, trains and light rail, with short walks.
 Routes are calculated on the phone, in English or Hebrew, and drawn on a map.
 
-**Status: early test build.** It has been tested on a PC only. Live bus delays and automatic schedule updates are not built yet,
-so every route uses scheduled times, and the bundled schedule stops covering dates after 2 December 2026.
+**Status: early test build.** It has been tested on a PC only. Trains and light rail use scheduled times only. The schedule inside the app stops covering dates after 2 December 2026,
+but the app downloads a newer one automatically (see below).
 
 ## What it does
 - Search from or to any stop, stop number, address or your location. Leave now, leave at, or arrive by.
@@ -22,6 +22,13 @@ Needs JDK 17 or newer and the Android SDK.
 The APK is written under `~/.yourway-build/app/outputs/apk/debug/`.
 
 ## Updating the schedule
+A GitHub Actions job (`.github/workflows/schedule.yml`) runs every night, downloads the Ministry feed, builds the files and publishes them
+as a `schedule-<date>` release when the feed changed. It points `schedule-latest/manifest.json` at them. The app checks that manifest
+at start-up (at most every 12 hours), downloads both files, verifies sizes and sha256, loads them as a test, and uses them from the next
+launch. Anything that fails leaves the schedule already in use alone. Run the job by hand from the Actions tab.
+
+To build by hand:
+
 `schedule/build_schedule.py` and `schedule/build_stops.py` turn the Ministry of Transport GTFS zip into
 `android/app/src/main/assets/schedule.dat` and `stops.dat`. Build both from the same zip, because the schedule refers to stops by position.
 

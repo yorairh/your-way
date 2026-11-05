@@ -1,0 +1,66 @@
+name: Nightly schedule
+
+# Downloads the Ministry of Transport GTFS feed, builds the compact schedule the app uses, and publishes it as a release
+# when the feed has changed. The app reads the manifest from the "schedule-latest" release.
+on:
+  schedule:
+    - cron: "30 22 * * *" # about 01:30 in Israel
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: schedule
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download the feed
+        run: |
+          # Must be GET: the server answers HEAD with a web page.
+          curl -fL --retry 5 --retry-delay 20 -o gtfs.zip https://gtfs.mot.gov.il/gtfsfiles/israel-public-transportation.zip
+          python -c "import zipfile; zipfile.ZipFile('gtfs.zip').testzip(); print('zip ok')"
+
+      - name: Build
+        run: |
+          mkdir out
+          python schedule/build_stops.py gtfs.zip out/stops.dat
+          python schedule/build_schedule.py gtfs.zip out/schedule.dat
+
+      - name: Skip when the feed is unchanged
+        id: changed
+        run: |
+          new=$(sha256sum gtfs.zip | cut -d' ' -f1)
+          old=$(curl -fsL https://github.com/${{ github.repository }}/releases/download/schedule-latest/manifest.json | python -c "import json,sys; print(json.load(sys.stdin).get('sourceSha256',''))" || true)
+          echo "new=$new old=$old"
+          if [ "$new" = "$old" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Publish
+        if: steps.changed.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          version=$(date -u +%Y%m%d-%H%M)
+          tag="schedule-$version"
+          base="https://github.com/${{ github.repository }}/releases/download/$tag"
+          python schedule/make_manifest.py gtfs.zip out "$base" "$version"
+          # The data goes up first under its own tag; only then does "schedule-latest" point at it.
+          gh release create "$tag" --prerelease out/schedule.dat out/stops.dat out/manifest.json --title "Schedule $version" \
+            --notes "Timetable data: Israel Ministry of Transport (gtfs.mot.gov.il), reformatted for the Your Way app."
+          if gh release view schedule-latest >/dev/null 2>&1; then
+            gh release upload schedule-latest out/manifest.json --clobber
+          else
+            gh release create schedule-latest --prerelease out/manifest.json --title "Latest schedule" \
+              --notes "Points the app at the newest schedule release. Not meant to be downloaded by hand."
+          fi
+          # Keep the newest three data releases.
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("schedule-2"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName' \
+            | while read -r old; do gh release delete "$old" --cleanup-tag --yes; done
