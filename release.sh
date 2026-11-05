@@ -2,6 +2,7 @@
 # Builds a signed release APK and publishes it as a GitHub release.
 # Usage: ./release.sh "Release notes"      (version comes from android/app/build.gradle.kts; commit and push first)
 set -euo pipefail
+export PATH="$PATH:/c/Program Files/GitHub CLI"
 cd "$(dirname "$0")"
 [ -f "$HOME/.yourway-release/signing.properties" ] || { echo "Missing ~/.yourway-release/signing.properties (the signing key)"; exit 1; }
 export JAVA_HOME="${JAVA_HOME:-C:/Program Files/Android/Android Studio/jbr}"
