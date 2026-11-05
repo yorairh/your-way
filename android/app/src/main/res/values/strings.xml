@@ -72,4 +72,5 @@
     <string name="live_late">Live · %1$d min late</string>
     <string name="missed_transfer">A delay may make you miss a connection</string>
     <string name="in_minutes">in %1$d min</string>
+    <string name="then_at">Then: %1$s</string>
 </resources>

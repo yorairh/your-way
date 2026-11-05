@@ -130,6 +130,21 @@ class TripPlannerTest {
     }
 
     @Test
+    fun eachBusOfAGroupedRouteListsItsFollowingRuns() {
+        val s = schedule(
+            TestPattern("fast", listOf(0, 2), listOf(0, 600), (0..5).map { eight + 300 + it * 900 }),
+            TestPattern("slow", listOf(0, 2), listOf(0, 1800), listOf(eight + 600)),
+        )
+        val options = plan(s).single().alternatives
+        val fast = options.first { lines(it) == listOf("fast") }
+        val slow = options.first { lines(it) == listOf("slow") }
+        assertEquals(2, fast.later.size)
+        assertEquals(listOf(900L, 1800L), fast.later.map { java.time.Duration.between(fast.departure, it.departure).seconds })
+        assertTrue(fast.later.all { lines(it) == listOf("fast") })
+        assertTrue(slow.later.joinToString { lines(it).toString() + it.departure }, slow.later.isEmpty())
+    }
+
+    @Test
     fun neverWalksTwiceInARow() {
         val close = listOf(32.0 to 34.8, 32.1 to 34.8, 32.102 to 34.8, 32.104 to 34.8)
         val s = testSchedule(close.size, listOf(TestPattern("1", listOf(0, 1), listOf(0, 600), listOf(eight + 300))))

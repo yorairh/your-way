@@ -32,3 +32,11 @@ The APK is written under `~/.yourway-build/app/outputs/apk/debug/`.
 - Schedule and stops: Israel Ministry of Transport GTFS feed (https://gtfs.mot.gov.il). The licence terms have not been checked yet.
 - Map data: (c) OpenStreetMap contributors, tiles from OpenFreeMap, drawn with MapLibre.
 - Address and place search: Photon (https://photon.komoot.io), based on OpenStreetMap.
+
+## Releasing
+Releases are signed with a private key kept outside the project in `~/.yourway-release/` (back it up; never commit it).
+Losing it means phones must uninstall the app before installing a newer one. The public certificate is in
+`signing/yourway-public-cert.pem` (SHA-256 `7E:E6:FB:2C:6A:47:76:A0:F1:8F:C7:6D:0A:DC:09:07:7D:1F:0C:0F:34:AB:72:3D:52:F2:50:8F:8F:D6:0C:2E`).
+Raise `versionCode` and `versionName` in `android/app/build.gradle.kts`, commit and push, then:
+
+    ./release.sh "What changed"

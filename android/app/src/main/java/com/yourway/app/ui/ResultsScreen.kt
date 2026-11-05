@@ -154,6 +154,13 @@ private fun OptionRow(option: Itinerary, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text(rides.joinToString(" › ") { it.line }, style = MaterialTheme.typography.titleMedium)
             Text(first.headsign, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            if (option.later.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.then_at, option.later.joinToString(", ") { it.departure.format(clockFormat) }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(stringResource(R.string.in_minutes, minutes), color = color, style = MaterialTheme.typography.titleMedium)

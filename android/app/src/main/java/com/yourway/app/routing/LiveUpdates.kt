@@ -111,7 +111,7 @@ class LiveUpdater(
     private fun adjust(trip: Itinerary, delays: Map<Triple<Int, Int, java.time.LocalDate>, Int?>): Itinerary {
         val options = if (trip.alternatives.isEmpty()) emptyList() else trip.alternatives.map { adjustOne(it, delays) }.sortedBy { it.departure }
         val self = adjustOne(trip, delays)
-        return Itinerary(self.legs, self.missedTransfer, options)
+        return Itinerary(self.legs, self.missedTransfer, options, self.later)
     }
 
     private fun adjustOne(trip: Itinerary, delays: Map<Triple<Int, Int, java.time.LocalDate>, Int?>): Itinerary {
@@ -147,7 +147,7 @@ class LiveUpdater(
                 }
             }
         }
-        return Itinerary(legs, missed)
+        return Itinerary(legs, missed, emptyList(), trip.later)
     }
 
     companion object {

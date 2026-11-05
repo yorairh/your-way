@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -13,10 +15,23 @@ android {
         applicationId = "com.yourway.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.9.0"
+        versionCode = 9
+        versionName = "0.10.0"
         // Phones only. The map library's native code is large, and PC emulator chips (x86) would double the size.
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+    }
+    // Releases are signed with the key in ~/.yourway-release (outside the project, never committed). Every release must use
+    // the same key, or phones refuse to install it over the previous version.
+    val signingFile = File(System.getProperty("user.home"), ".yourway-release/signing.properties")
+    if (signingFile.exists()) {
+        val keys = Properties().apply { signingFile.inputStream().use { load(it) } }
+        signingConfigs.create("release") {
+            storeFile = File(keys.getProperty("storeFile"))
+            storePassword = keys.getProperty("storePassword")
+            keyAlias = keys.getProperty("keyAlias")
+            keyPassword = keys.getProperty("keyPassword")
+        }
+        buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

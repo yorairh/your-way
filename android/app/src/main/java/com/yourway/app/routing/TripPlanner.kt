@@ -109,7 +109,43 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         // A bus an hour later is not an option worth listing beside the next ones.
         val all = (trip.alternatives + others).distinctBy { it.signature() }.sortedBy { it.departure }
         val options = all.filter { it === trip || !it.departure.isAfter(all.first().departure.plusMinutes(OPTION_WINDOW_MINUTES)) }.take(MAX_OPTIONS)
-        return Itinerary(trip.legs, trip.missedTransfer, options)
+        return Itinerary(trip.legs, trip.missedTransfer, options.map { withLaterRuns(it, query) })
+    }
+
+    /** The next few runs of the same line between the same stops, found by searching after this one leaves. */
+    private fun withLaterRuns(trip: Itinerary, query: TripQuery): Itinerary {
+        val ref = trip.rides.singleOrNull()?.ride ?: return trip
+        val base = schedule.patStopStart[ref.pattern]
+        val board = schedule.patStops[base + ref.boardPos]
+        val alight = schedule.patStops[base + ref.alightPos]
+        val excluded = BooleanArray(schedule.patternCount) { true }
+        for (k in schedule.stopPatStart[board] until schedule.stopPatStart[board + 1]) {
+            val pattern = schedule.stopPats[k]
+            if (schedule.routeShort[schedule.route(pattern)] != schedule.routeShort[schedule.route(ref.pattern)]) continue
+            val start = schedule.patStopStart[pattern]
+            val end = schedule.patStopStart[pattern + 1]
+            if ((schedule.stopPatPos[k] + 1 until end - start).any { schedule.patStops[start + it] == alight }) excluded[pattern] = false
+        }
+        val key = trip.journeyKey()
+        val later = ArrayList<Itinerary>()
+        var after = trip
+        for (i in 0 until LATER_RUNS) {
+            // Leaving a minute after the last one may still catch the same bus (a walk comes first), so step on until a later one shows.
+            val boarded = after.rides.first().start
+            var at = after.departure.plusMinutes(1)
+            var found: Itinerary? = null
+            while (found == null && !at.isAfter(boarded.plusMinutes(1))) {
+                val batch = search(query, at, excluded, query.maxWalkMeters).map { it.second }.filter { it.journeyKey() == key }
+                if (batch.isEmpty()) break
+                found = batch.filter { it.rides.first().start.isAfter(boarded) }.minByOrNull { it.departure }
+                at = at.plusMinutes(1)
+            }
+            // The search rolls over to later days; a run that far away is not "the next bus".
+            if (found == null || found.departure.isAfter(trip.departure.plusMinutes(LATER_WINDOW_MINUTES))) break
+            later += found
+            after = found
+        }
+        return Itinerary(trip.legs, trip.missedTransfer, trip.alternatives, later)
     }
 
     private fun distinct(list: List<Itinerary>) = list.distinctBy { it.signature() }.size
@@ -238,6 +274,8 @@ class TripPlanner(private val schedule: Schedule, private val stops: StopDirecto
         const val RESULT_COUNT = 3
         const val MIN_OPTIONS = 6
         const val MAX_OPTIONS = 5
+        const val LATER_RUNS = 2
+        const val LATER_WINDOW_MINUTES = 90L
         const val OPTION_WINDOW_MINUTES = 40L
         const val MAX_SEARCHES = 8
         const val MAX_ARRIVE_BY_STEPS = 16
